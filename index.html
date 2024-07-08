@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PixelVista Explorer</title>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2c3e50;
+            --background-color: #ecf0f1;
+            --text-color: #333;
+            --light-text: #fff;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            background-color: var(--background-color);
+        }
+        header, footer {
+            background-color: var(--secondary-color);
+            color: var(--light-text);
+            text-align: center;
+            padding: 1rem;
+        }
+        header img {
+            max-width: 200px;
+            margin-bottom: 1rem;
+        }
+        main {
+            flex: 1;
+            padding: 2rem;
+        }
+        .search-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+        #search-input {
+            padding: 0.5rem;
+            font-size: 1rem;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px 0 0 4px;
+            width: 300px;
+        }
+        #search-button {
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+            background-color: var(--primary-color);
+            color: var(--light-text);
+            border: none;
+            border-radius: 0 4px 4px 0;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #search-button:hover {
+            background-color: #2980b9;
+        }
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .image-item {
+            position: relative;
+            overflow: hidden;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        .image-item:hover {
+            transform: scale(1.05);
+        }
+        .image-item img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            display: block;
+        }
+        .image-item .copy-url {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background-color: rgba(0,0,0,0.7);
+            color: var(--light-text);
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+        }
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 90%;
+            max-height: 90%;
+        }
+        .modal-content img {
+            width: 100%;
+            height: auto;
+            max-height: 90vh;
+            object-fit: contain;
+        }
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: var(--light-text);
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .navigation {
+            display: flex;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+        .navigation button {
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+            background-color: var(--primary-color);
+            color: var(--light-text);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin: 0 0.5rem;
+        }
+        .navigation button:hover {
+            background-color: #2980b9;
+        }
+        footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+        footer a:hover {
+            text-decoration: underline;
+        }
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        .toast {
+            background-color: var(--secondary-color);
+            color: var(--light-text);
+            padding: 1rem;
+            border-radius: 4px;
+            margin-top: 0.5rem;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <img src="path/to/your/logo.png" alt="PixelVista Explorer Logo">
+        <h1>PixelVista Explorer</h1>
+    </header>
+    <main>
+        <div class="search-container">
+            <input type="text" id="search-input" placeholder="Enter search term">
+            <button id="search-button">Search</button>
+        </div>
+        <div id="image-grid" class="image-grid"></div>
+        <div class="navigation">
+            <button id="prev-button">Previous</button>
+            <button id="next-button">Next</button>
+        </div>
+    </main>
+    <div id="image-modal" class="modal">
+        <span class="close">&times;</span>
+        <img class="modal-content" id="modal-image">
+    </div>
+    <div class="toast-container" id="toast-container"></div>
+    <footer>
+        Images provided by <a href="https://www.pexels.com" target="_blank" rel="noopener noreferrer">Pexels</a>. 
+        Built with Anthropic & by VA Graphics. © 2024 PixelVista Explorer. All rights reserved.
+    </footer>
+
+    <script>
+        const API_KEY = 'J83vgAmmlMpkmsccrGGRkJ2Oeq4t9ayWwIeI3YFCRCLFM34SncUuo8rK';
+        const PER_PAGE = 20;
+        let currentPage = 1;
+        let currentQuery = 'nature';
+
+        const DOM = {
+            searchInput: document.getElementById('search-input'),
+            searchButton: document.getElementById('search-button'),
+            imageGrid: document.getElementById('image-grid'),
+            prevButton: document.getElementById('prev-button'),
+            nextButton: document.getElementById('next-button'),
+            modal: document.getElementById('image-modal'),
+            modalImg: document.getElementById('modal-image'),
+            closeButton: document.querySelector('.close'),
+            toastContainer: document.getElementById('toast-container')
+        };
+
+        const API = {
+            async fetchImages(query, page) {
+                const url = `https://api.pexels.com/v1/search?query=${query}&per_page=${PER_PAGE}&page=${page}`;
+                try {
+                    const response = await fetch(url, {
+                        headers: { Authorization: API_KEY }
+                    });
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return await response.json();
+                } catch (error) {
+                    console.error('Error fetching images:', error);
+                    showToast('Error loading images. Please try again.', 'error');
+                    return null;
+                }
+            }
+        };
+
+        const UI = {
+            createImageGrid(photos) {
+                DOM.imageGrid.innerHTML = '';
+                photos.forEach(photo => {
+                    const imageItem = document.createElement('div');
+                    imageItem.className = 'image-item';
+                    imageItem.innerHTML = `
+                        <img src="${photo.src.medium}" alt="${photo.alt}" loading="lazy">
+                        <div class="copy-url">Copy URL</div>
+                    `;
+                    imageItem.querySelector('img').addEventListener('click', () => this.openModal(photo.src.large));
+                    imageItem.querySelector('.copy-url').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.copyImageUrl(photo.src.original, photo.alt);
+                    });
+                    DOM.imageGrid.appendChild(imageItem);
+                });
+            },
+            openModal(src) {
+                DOM.modal.style.display = 'block';
+                DOM.modalImg.src = src;
+            },
+            closeModal() {
+                DOM.modal.style.display = 'none';
+            },
+            async copyImageUrl(src, alt) {
+                const imgTag = `<img src="${src}" alt="${alt}">`;
+                try {
+                    await navigator.clipboard.writeText(imgTag);
+                   Sure, here's the continuation of the JavaScript and the full integration of the provided logo for your project "PixelVista Explorer":
+
+### JavaScript
+
+```html
+        async copyImageUrl(src, alt) {
+                const imgTag = `<img src="${src}" alt="${alt}">`;
+                try {
+                    await navigator.clipboard.writeText(imgTag);
+                    showToast('Image URL copied to clipboard!', 'success');
+                } catch (err) {
+                    console.error('Failed to copy: ', err);
+                    showToast('Failed to copy URL. Please try again.', 'error');
+                }
+            }
+        };
+
+        async function loadImages() {
+            const data = await API.fetchImages(currentQuery, currentPage);
+            if (data && data.photos) {
+                UI.createImageGrid(data.photos);
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            DOM.toastContainer.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    DOM.toastContainer.removeChild(toast);
+                }, 300);
+            }, 3000);
+        }
+
+        function setupEventListeners() {
+            DOM.searchButton.addEventListener('click', () => {
+                currentQuery = DOM.searchInput.value.trim() || 'nature';
+                currentPage = 1;
+                loadImages();
+            });
+
+            DOM.prevButton.addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    loadImages();
+                }
+            });
+
+            DOM.nextButton.addEventListener('click', () => {
+                currentPage++;
+                loadImages();
+            });
+
+            DOM.closeButton.onclick = UI.closeModal;
+            window.onclick = (event) => {
+                if (event.target == DOM.modal) {
+                    UI.closeModal();
+                }
+            };
+
+            DOM.searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    DOM.searchButton.click();
+                }
+            });
+        }
+
+        function init() {
+            setupEventListeners();
+            loadImages();
+        }
+
+        init();
+    </script>
+</body>
+</html>
