@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PixelVista Explorer</title>
+    <title>PixelVista Explorer 2024</title>
     <style>
         :root {
             --primary-color: #3498db;
             --secondary-color: #2c3e50;
+            --accent-color: #e74c3c;
             --background-color: #ecf0f1;
             --text-color: #333;
             --light-text: #fff;
@@ -22,9 +23,9 @@
             line-height: 1.6;
             color: var(--text-color);
             background-color: var(--background-color);
-            min-height: 100vh;
             display: flex;
             flex-direction: column;
+            min-height: 100vh;
         }
         header {
             background-color: var(--secondary-color);
@@ -35,8 +36,8 @@
             justify-content: center;
         }
         .logo-container {
-            width: 60px;
-            height: 60px;
+            width: 80px;
+            height: 80px;
             border-radius: 50%;
             overflow: hidden;
             margin-right: 1rem;
@@ -61,7 +62,7 @@
         .search-container {
             display: flex;
             justify-content: center;
-            margin-bottom: 2rem;
+            margin-bottom: 1rem;
         }
         #search-input {
             padding: 0.5rem;
@@ -82,6 +83,12 @@
         }
         #search-button:hover {
             background-color: #2980b9;
+        }
+        .search-summary {
+            text-align: center;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            color: var(--secondary-color);
         }
         .image-grid {
             display: grid;
@@ -188,9 +195,17 @@
         footer {
             background-color: var(--secondary-color);
             color: var(--light-text);
-            text-align: center;
             padding: 1rem;
-            margin-top: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        footer .footer-left,
+        footer .footer-right {
+            flex: 1;
+            min-width: 200px;
+            margin: 0.5rem;
         }
         footer a {
             color: var(--primary-color);
@@ -199,20 +214,35 @@
         footer a:hover {
             text-decoration: underline;
         }
+        #donate-button {
+            background-color: var(--accent-color);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+        }
+        #donate-button:hover {
+            background-color: #c0392b;
+        }
     </style>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
 <body>
     <header>
         <div class="logo-container" id="logo-container">
             <img src="https://raw.githubusercontent.com/anandvip/pixel-vista/main/PixelVista2024.webp" alt="PixelVista Explorer Logo">
         </div>
-        <h1>PixelVista Explorer</h1>
+        <h1>PixelVista Explorer 2024</h1>
     </header>
     <main>
         <div class="search-container">
             <input type="text" id="search-input" placeholder="Enter search term">
             <button id="search-button">Search</button>
         </div>
+        <div id="search-summary" class="search-summary"></div>
         <div id="image-grid" class="image-grid"></div>
         <div class="navigation">
             <button id="prev-button">Previous</button>
@@ -225,8 +255,16 @@
     </div>
     <div class="toast-container" id="toast-container"></div>
     <footer>
-        Images provided by <a href="https://www.pexels.com" target="_blank" rel="noopener noreferrer">Pexels</a>. 
-        Built with Anthropic & by VA Graphics. © 2024 PixelVista Explorer. All rights reserved.
+        <div class="footer-left">
+            Images provided by <a href="https://www.pexels.com" target="_blank" rel="noopener noreferrer">Pexels</a>. 
+            Built with Anthropic & by VA Graphics.
+        </div>
+        <div class="footer-right">
+            <button id="donate-button">Donate</button>
+        </div>
+        <div class="footer-bottom">
+            © 2024 PixelVista Explorer. All rights reserved.
+        </div>
     </footer>
 
     <script>
@@ -234,6 +272,8 @@
         const PER_PAGE = 20;
         let currentPage = 1;
         let currentQuery = 'nature';
+        let totalImages = 0;
+        let totalPages = 0;
 
         const DOM = {
             searchInput: document.getElementById('search-input'),
@@ -245,67 +285,75 @@
             modalImg: document.getElementById('modal-image'),
             closeButton: document.querySelector('.close'),
             toastContainer: document.getElementById('toast-container'),
-            logoContainer: document.getElementById('logo-container')
+            logoContainer: document.getElementById('logo-container'),
+            searchSummary: document.getElementById('search-summary'),
+            donateButton: document.getElementById('donate-button')
         };
 
-        const API = {
-            async fetchImages(query, page) {
-                const url = `https://api.pexels.com/v1/search?query=${query}&per_page=${PER_PAGE}&page=${page}`;
-                try {
-                    const response = await fetch(url, {
-                        headers: { Authorization: API_KEY }
-                    });
-                    if (!response.ok) throw new Error('Network response was not ok');
-                    return await response.json();
-                } catch (error) {
-                    console.error('Error fetching images:', error);
-                    showToast('Error loading images. Please try again.', 'error');
-                    return null;
-                }
-            }
-        };
-
-        const UI = {
-            createImageGrid(photos) {
-                DOM.imageGrid.innerHTML = '';
-                photos.forEach(photo => {
-                    const imageItem = document.createElement('div');
-                    imageItem.className = 'image-item';
-                    imageItem.innerHTML = `
-                        <img src="${photo.src.medium}" alt="${photo.alt}" loading="lazy">
-                        <div class="copy-url">Copy URL</div>
-                    `;
-                    imageItem.querySelector('img').addEventListener('click', () => this.openModal(photo.src.large));
-                    imageItem.querySelector('.copy-url').addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        this.copyImageUrl(photo.src.original, photo.alt);
-                    });
-                    DOM.imageGrid.appendChild(imageItem);
+        async function fetchImages(query, page) {
+            const url = `https://api.pexels.com/v1/search?query=${query}&per_page=${PER_PAGE}&page=${page}`;
+            try {
+                const response = await fetch(url, {
+                    headers: { Authorization: API_KEY }
                 });
-            },
-            openModal(src) {
-                DOM.modal.style.display = 'block';
-                DOM.modalImg.src = src;
-            },
-            closeModal() {
-                DOM.modal.style.display = 'none';
-            },
-            async copyImageUrl(src, alt) {
-                const imgTag = `<img src="${src}" alt="${alt}">`;
-                try {
-                    await navigator.clipboard.writeText(imgTag);
-                    showToast('Image URL copied to clipboard!', 'success');
-                } catch (err) {
-                    console.error('Failed to copy: ', err);
-                    showToast('Failed to copy URL. Please try again.', 'error');
-                }
+                if (!response.ok) throw new Error('Network response was not ok');
+                return await response.json();
+            } catch (error) {
+                console.error('Error fetching images:', error);
+                showToast('Error loading images. Please try again.', 'error');
+                return null;
             }
-        };
+        }
+
+        function createImageGrid(photos) {
+            DOM.imageGrid.innerHTML = '';
+            photos.forEach(photo => {
+                const imageItem = document.createElement('div');
+                imageItem.className = 'image-item';
+                imageItem.innerHTML = `
+                    <img src="${photo.src.medium}" alt="${photo.alt}" loading="lazy">
+                    <div class="copy-url">Copy URL</div>
+                `;
+                imageItem.querySelector('img').addEventListener('click', () => openModal(photo.src.large));
+                imageItem.querySelector('.copy-url').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    copyImageUrl(photo.src.original, photo.alt);
+                });
+                DOM.imageGrid.appendChild(imageItem);
+            });
+        }
+
+        function updateSearchSummary() {
+            DOM.searchSummary.textContent = `Showing page ${currentPage} of ${totalPages} (${totalImages} images found for "${currentQuery}")`;
+        }
+
+        function openModal(src) {
+            DOM.modal.style.display = 'block';
+            DOM.modalImg.src = src;
+        }
+
+        function closeModal() {
+            DOM.modal.style.display = 'none';
+        }
+
+        async function copyImageUrl(src, alt) {
+            const imgTag = `<img src="${src}" alt="${alt}">`;
+            try {
+                await navigator.clipboard.writeText(imgTag);
+                showToast('Image URL copied to clipboard!', 'success');
+            } catch (err) {
+                console.error('Failed to copy: ', err);
+                showToast('Failed to copy URL. Please try again.', 'error');
+            }
+        }
 
         async function loadImages() {
-            const data = await API.fetchImages(currentQuery, currentPage);
+            const data = await fetchImages(currentQuery, currentPage);
             if (data && data.photos) {
-                UI.createImageGrid(data.photos);
+                createImageGrid(data.photos);
+                totalImages = data.total_results;
+                totalPages = Math.ceil(data.total_results / PER_PAGE);
+                updateSearchSummary();
             }
         }
 
@@ -314,15 +362,35 @@
             toast.className = `toast ${type}`;
             toast.textContent = message;
             DOM.toastContainer.appendChild(toast);
-            setTimeout(() => {
-                toast.classList.add('show');
-            }, 10);
+            setTimeout(() => toast.classList.add('show'), 10);
             setTimeout(() => {
                 toast.classList.remove('show');
-                setTimeout(() => {
-                    DOM.toastContainer.removeChild(toast);
-                }, 300);
+                setTimeout(() => DOM.toastContainer.removeChild(toast), 300);
             }, 3000);
+        }
+
+        function handleDonation() {
+            var options = {
+                "key": "YOUR_RAZORPAY_KEY", // Replace with your actual Razorpay key
+                "amount": "50000", // Amount in paise (500 INR)
+                "currency": "INR",
+                "name": "PixelVista Explorer",
+                "description": "Donation to support PixelVista Explorer",
+                "image": "https://raw.githubusercontent.com/anandvip/pixel-vista/main/PixelVista2024.webp",
+                "handler": function (response){
+                    showToast("Thank you for your donation!", "success");
+                },
+                "prefill": {
+                    "name": "",
+                    "email": "",
+                    "contact": ""
+                },
+                "theme": {
+                    "color": "#3498db"
+                }
+            };
+            var rzp = new Razorpay(options);
+            rzp.open();
         }
 
         function setupEventListeners() {
@@ -340,14 +408,16 @@
             });
 
             DOM.nextButton.addEventListener('click', () => {
-                currentPage++;
-                loadImages();
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    loadImages();
+                }
             });
 
-            DOM.closeButton.onclick = UI.closeModal;
+            DOM.closeButton.onclick = closeModal;
             window.onclick = (event) => {
                 if (event.target == DOM.modal) {
-                    UI.closeModal();
+                    closeModal();
                 }
             };
 
@@ -358,8 +428,37 @@
             });
 
             DOM.logoContainer.addEventListener('click', () => {
-                UI.openModal(DOM.logoContainer.querySelector('img').src);
+                openModal(DOM.logoContainer.querySelector('img').src);
             });
+
+            DOM.donateButton.addEventListener('click', handleDonation);
+        }
+      
+function handleDonation() {
+            var options = {
+                "key": "rzp_live_CyJnKbNEiFnMeT", // Your provided Razorpay key
+                "amount": "100000", // Amount in paise (1000 INR)
+                "currency": "INR",
+                "name": "PixelVista Explorer",
+                "description": "Donation to support PixelVista Explorer",
+                "image": "https://raw.githubusercontent.com/anandvip/pixel-vista/main/PixelVista2024.webp",
+                "handler": function (response){
+                    showToast("Thank you for your donation! Transaction ID: " + response.razorpay_payment_id, "success");
+                },
+                "prefill": {
+                    "name": "",
+                    "email": "",
+                    "contact": ""
+                },
+                "theme": {
+                    "color": "#3498db" // Using the primary color of our app
+                }
+            };
+            var rzp = new Razorpay(options);
+            rzp.on('payment.failed', function (response){
+                showToast("Payment failed. Please try again. Error: " + response.error.description, "error");
+            });
+            rzp.open();
         }
 
         function init() {
